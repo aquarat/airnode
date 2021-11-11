@@ -11,7 +11,6 @@ import { version as nodeVersion } from '@api3/airnode-node';
 import { deploy, removeWithReceipt, remove } from './commands';
 import * as logger from '../utils/logger';
 import { version as packageVersion } from '../../package.json';
-import { supportedCloudProviders } from '../types';
 
 function drawHeader() {
   console.log(
@@ -104,7 +103,7 @@ yargs(hideBin(process.argv))
       'cloud-provider': {
         alias: 'c',
         description: 'Cloud provider',
-        choices: supportedCloudProviders,
+        choices: ['aws', 'gcp'] as const,
       },
       region: {
         alias: 'e',
@@ -159,7 +158,7 @@ yargs(hideBin(process.argv))
           remove(args['airnode-address-short']!.toLowerCase(), args.stage!, {
             name: args['cloud-provider']!,
             region: args.region!,
-            projectId: args['project-id'],
+            projectId: args['project-id']!,
           })
         );
         return;
