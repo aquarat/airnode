@@ -8,10 +8,10 @@ ENV terraformURL="https://releases.hashicorp.com/terraform/1.0.6/terraform_1.0.6
 LABEL application=${name} \
       description="Airnode Deployer CLI"
 
-COPY --from=api3/airnode-artifacts /dependencies/common ${appDir}/node_modules
-COPY --from=api3/airnode-artifacts /dependencies/airnode-deployer ${appDir}/node_modules
-COPY --from=api3/airnode-artifacts /packages ${appDir}/node_modules/@api3/
-COPY --from=api3/airnode-artifacts /build/packages/airnode-deployer/dist ${appDir}/
+COPY --from=aquarat/airnode-artifacts /dependencies/common ${appDir}/node_modules
+COPY --from=aquarat/airnode-artifacts /dependencies/airnode-deployer ${appDir}/node_modules
+COPY --from=aquarat/airnode-artifacts /packages ${appDir}/node_modules/@api3/
+COPY --from=aquarat/airnode-artifacts /build/packages/airnode-deployer/dist ${appDir}/
 COPY packages/airnode-deployer/docker/entrypoint.sh /entrypoint.sh
 
     # Install external dependencies
