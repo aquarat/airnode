@@ -9,11 +9,11 @@ Each integration consist of a these files:
 - `config.example.json` - An example configuration file for this integration.
 - `create-config.ts` - A file that will be called by `create-airnode-config.ts` to create the `config.json` file. See
   the
-  [docs](https://docs.api3.org/airnode/v0.2/grp-providers/guides/build-an-airnode/configuring-airnode.html#creating-config-json)
+  [docs](https://docs.api3.org/airnode/v0.3/grp-providers/guides/build-an-airnode/configuring-airnode.html#creating-config-json)
   for details.
 - `create-secrets.ts` - A file that will be called by `create-airnode-secrets.ts` to create the `secrets.env` file. See
   the
-  [docs](https://docs.api3.org/airnode/v0.2/grp-providers/guides/build-an-airnode/configuring-airnode.html#creating-secrets-env)
+  [docs](https://docs.api3.org/airnode/v0.3/grp-providers/guides/build-an-airnode/configuring-airnode.html#creating-secrets-env)
   for details.
 - `README.md` - Should explain what the particular integration is about.
 - `request-utils.ts` - This file contains functions which are necessary to make the Airnode request.
@@ -35,6 +35,8 @@ When adding an integration you need to do a few things:
 4. After creating the necessary files (generators), you need to generate the example files for configuration and
    secrets. Generate them by running `yarn dev:generate-example-files`
 5. Run `yarn build` from the top-level `airnode` directory to build the contract artifacts.
+6. Once tested, add a description of the integration to the
+   [airnode-examples README](https://github.com/api3dao/airnode/blob/master/packages/airnode-examples/README.md).
 
 It is best to start with an existing integration and just edit the relevant parts. Try to make your integration as
 simple and focused as possible and not include unnecessary features.

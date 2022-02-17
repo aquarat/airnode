@@ -1,9 +1,20 @@
 import * as path from 'path';
 import { Request, Response } from '@google-cloud/functions-framework/build/src/functions';
-import { config, handlers, logger, utils, providers } from '@api3/airnode-node';
+import {
+  handlers,
+  logger,
+  utils,
+  providers,
+  config,
+  InitializeProviderPayload,
+  CallApiPayload,
+  ProcessTransactionsPayload,
+  WorkerPayload,
+} from '@api3/airnode-node';
+import { loadConfig } from '../../utils';
 
 const configFile = path.resolve(`${__dirname}/../../config-data/config.json`);
-const parsedConfig = config.parseConfig(configFile, process.env);
+const parsedConfig = loadConfig(configFile, process.env, false);
 
 export async function startCoordinator(_req: Request, res: Response) {
   await handlers.startCoordinator(parsedConfig);
@@ -11,8 +22,24 @@ export async function startCoordinator(_req: Request, res: Response) {
   res.status(200).send(response);
 }
 
-export async function initializeProvider(req: Request, res: Response) {
-  const stateWithConfig = { ...req.body.state, config: parsedConfig };
+export async function run(req: Request, res: Response) {
+  const payload: WorkerPayload = req.body;
+
+  switch (payload.functionName) {
+    case 'initializeProvider':
+      return initializeProvider(payload, res);
+    case 'callApi':
+      return callApi(payload, res);
+    case 'processTransactions':
+      return processTransactions(payload, res);
+  }
+}
+
+// TODO: Refactor handlers so they are common for all the cloud providers
+// https://api3dao.atlassian.net/browse/AN-527
+
+async function initializeProvider(payload: InitializeProviderPayload, res: Response) {
+  const stateWithConfig = { ...payload.state, config: parsedConfig };
 
   const [err, initializedState] = await utils.go(() => handlers.initializeProvider(stateWithConfig));
   if (err || !initializedState) {
@@ -28,16 +55,16 @@ export async function initializeProvider(req: Request, res: Response) {
   res.status(200).send(body);
 }
 
-export async function callApi(req: Request, res: Response) {
-  const { aggregatedApiCall, logOptions, apiCallOptions } = req.body;
-  const [logs, apiCallResponse] = await handlers.callApi({ config: parsedConfig, apiCallOptions, aggregatedApiCall });
+async function callApi(payload: CallApiPayload, res: Response) {
+  const { aggregatedApiCall, logOptions } = payload;
+  const [logs, apiCallResponse] = await handlers.callApi({ config: parsedConfig, aggregatedApiCall });
   logger.logPending(logs, logOptions);
   const response = { ok: true, data: apiCallResponse };
   res.status(200).send(response);
 }
 
-export async function processProviderRequests(req: Request, res: Response) {
-  const stateWithConfig = { ...req.body.state, config: parsedConfig };
+async function processTransactions(payload: ProcessTransactionsPayload, res: Response) {
+  const stateWithConfig = { ...payload.state, config: parsedConfig };
 
   const [err, updatedState] = await utils.go(() => handlers.processTransactions(stateWithConfig));
   if (err || !updatedState) {
@@ -50,4 +77,30 @@ export async function processProviderRequests(req: Request, res: Response) {
 
   const body = { ok: true, data: providers.scrub(updatedState) };
   res.status(200).send(body);
+}
+
+export async function testApi(req: Request, res: Response) {
+  // We need to check for an API key manually because GCP HTTP Gateway
+  // doesn't support managing API keys via API
+  const apiKey = req.header('x-api-key');
+  if (!apiKey || apiKey !== config.getEnvValue('HTTP_GATEWAY_API_KEY')) {
+    res.status(401).send({ error: 'Wrong API key' });
+  }
+
+  const { parameters } = req.body;
+  const { endpointId } = req.query;
+
+  if (!endpointId) {
+    res.status(400).send({ error: 'Missing endpointId' });
+    return;
+  }
+
+  const [err, result] = await handlers.testApi(parsedConfig, endpointId as string, parameters);
+  if (err) {
+    res.status(400).send({ error: err.toString() });
+    return;
+  }
+
+  // NOTE: We do not want the user to see {"value": <actual_value>}, but the actual value itself
+  res.status(200).send(result!.value);
 }

@@ -1,24 +1,26 @@
 import * as path from 'path';
 import { parseConfig } from '../config';
 import * as handlers from '../handlers';
-import { ApiCallOptions } from '../handlers';
 import * as logger from '../logger';
 import * as state from '../providers/state';
-import { AggregatedApiCall, EVMProviderState, LogOptions, ProviderState, WorkerResponse } from '../types';
+import { WorkerResponse, InitializeProviderPayload, CallApiPayload, ProcessTransactionsPayload } from '../types';
 import { go } from '../utils/promise-utils';
 
-export interface ProviderArgs {
-  readonly state: ProviderState<EVMProviderState>;
-}
-
-export interface CallApiArgs {
-  readonly aggregatedApiCall: AggregatedApiCall;
-  readonly logOptions: LogOptions;
-  readonly apiCallOptions: ApiCallOptions;
-}
-
 function loadConfig() {
-  return parseConfig(path.resolve(`${__dirname}/../../config/config.json`), process.env);
+  const { config, shouldSkipValidation, validationOutput } = parseConfig(
+    path.resolve(`${__dirname}/../../config/config.json`),
+    process.env,
+    true
+  );
+
+  // TODO: Log debug that validation is skipped
+  if (shouldSkipValidation) return config;
+  if (!validationOutput.valid) {
+    throw new Error(`Invalid Airnode configuration file: ${JSON.stringify(validationOutput.messages, null, 2)}`);
+  }
+  // TODO: Log validation warnings - currently not possible since we have troubles constructing logger options
+
+  return config;
 }
 
 export async function startCoordinator(): Promise<WorkerResponse> {
@@ -27,7 +29,7 @@ export async function startCoordinator(): Promise<WorkerResponse> {
   return { ok: true, data: { message: 'Coordinator completed' } };
 }
 
-export async function initializeProvider({ state: providerState }: ProviderArgs): Promise<WorkerResponse> {
+export async function initializeProvider({ state: providerState }: InitializeProviderPayload): Promise<WorkerResponse> {
   const config = loadConfig();
   const stateWithConfig = state.update(providerState, { config });
 
@@ -42,14 +44,16 @@ export async function initializeProvider({ state: providerState }: ProviderArgs)
   return { ok: true, data: scrubbedState };
 }
 
-export async function callApi({ aggregatedApiCall, logOptions, apiCallOptions }: CallApiArgs): Promise<WorkerResponse> {
+export async function callApi({ aggregatedApiCall, logOptions }: CallApiPayload): Promise<WorkerResponse> {
   const config = loadConfig();
-  const [logs, response] = await handlers.callApi({ config, aggregatedApiCall, apiCallOptions });
+  const [logs, response] = await handlers.callApi({ config, aggregatedApiCall });
   logger.logPending(logs, logOptions);
   return { ok: true, data: response };
 }
 
-export async function processProviderRequests({ state: providerState }: ProviderArgs): Promise<WorkerResponse> {
+export async function processTransactions({
+  state: providerState,
+}: ProcessTransactionsPayload): Promise<WorkerResponse> {
   const config = loadConfig();
   const stateWithConfig = state.update(providerState, { config });
 

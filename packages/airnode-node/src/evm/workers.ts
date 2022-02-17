@@ -2,18 +2,25 @@ import { go } from '../utils/promise-utils';
 import * as logger from '../logger';
 import * as providerState from '../providers/state';
 import * as workers from '../workers';
-import { EVMProviderState, LogsData, ProviderState, WorkerFunctionName, WorkerOptions } from '../types';
+import {
+  EVMProviderState,
+  EVMProviderSponsorState,
+  LogsData,
+  ProviderState,
+  InitializeProviderPayload,
+  ProcessTransactionsPayload,
+  WorkerOptions,
+} from '../types';
 
-async function spawn(
-  state: ProviderState<EVMProviderState>,
+async function spawn<T extends EVMProviderState>(
+  state: ProviderState<T>,
   workerOpts: WorkerOptions,
-  functionName: WorkerFunctionName,
+  functionName: InitializeProviderPayload['functionName'] | ProcessTransactionsPayload['functionName'],
   errorMessage: string
-): Promise<LogsData<ProviderState<EVMProviderState> | null>> {
+): Promise<LogsData<ProviderState<T> | null>> {
   const options = {
     ...workerOpts,
-    functionName,
-    payload: { state },
+    payload: { state, functionName } as InitializeProviderPayload | ProcessTransactionsPayload,
   };
 
   const [err, res] = await go(() => workers.spawn(options));
@@ -42,8 +49,8 @@ export async function spawnNewProvider(
 }
 
 export async function spawnProviderRequestProcessor(
-  state: ProviderState<EVMProviderState>,
+  state: ProviderState<EVMProviderSponsorState>,
   workerOpts: WorkerOptions
-): Promise<LogsData<ProviderState<EVMProviderState> | null>> {
-  return spawn(state, workerOpts, 'processProviderRequests', 'Unable to process provider requests');
+): Promise<LogsData<ProviderState<EVMProviderSponsorState> | null>> {
+  return spawn(state, workerOpts, 'processTransactions', 'Unable to process provider requests');
 }

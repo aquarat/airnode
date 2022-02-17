@@ -24,6 +24,7 @@ describe('aggregate (API calls)', () => {
     const res = aggregation.aggregate(fixtures.buildConfig(), apiCalls);
     expect(res).toEqual({
       apiCallId: {
+        type: 'regular',
         sponsorAddress: 'sponsorAddress',
         airnodeAddress: 'airnodeAddress',
         requesterAddress: 'requesterAddress',
@@ -34,6 +35,19 @@ describe('aggregate (API calls)', () => {
         id: 'apiCallId',
         oisTitle: 'Currency Converter API',
         parameters: { from: 'ETH' },
+        encodedParameters: 'encodedParameters',
+        fulfillAddress: 'fulfillAddress',
+        fulfillFunctionId: 'fulfillFunctionId',
+        metadata: {
+          address: '0x5FbDB2315678afecb367f032d93F642f64180aa3',
+          blockNumber: 10716082,
+          currentBlock: 10716090,
+          ignoreBlockedRequestsAfterBlocks: 20,
+          transactionHash: 'logTransactionHash',
+        },
+        requestCount: '12',
+        requestType: 'template',
+        templateId: null,
       },
     });
   });
@@ -47,6 +61,7 @@ describe('aggregate (API calls)', () => {
     const res = aggregation.aggregate(fixtures.buildConfig(), apiCalls);
     expect(res).toEqual({
       apiCallId: {
+        type: 'regular',
         sponsorAddress: 'sponsorAddress',
         airnodeAddress: 'airnodeAddress',
         requesterAddress: 'requesterAddress',
@@ -57,6 +72,19 @@ describe('aggregate (API calls)', () => {
         id: 'apiCallId',
         oisTitle: 'Currency Converter API',
         parameters: { from: 'ETH' },
+        encodedParameters: 'encodedParameters',
+        fulfillAddress: '0x123',
+        fulfillFunctionId: 'fulfillFunctionId',
+        metadata: {
+          address: '0x5FbDB2315678afecb367f032d93F642f64180aa3',
+          blockNumber: 10716082,
+          currentBlock: 10716090,
+          ignoreBlockedRequestsAfterBlocks: 20,
+          transactionHash: 'logTransactionHash',
+        },
+        requestCount: '12',
+        requestType: 'template',
+        templateId: null,
       },
     });
   });

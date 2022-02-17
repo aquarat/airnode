@@ -19,6 +19,7 @@ import * as fixtures from '../../../test/fixtures';
 import * as wallet from '../wallet';
 import { GasTarget, RequestErrorMessage, RequestStatus } from '../../types';
 import { AirnodeRrp } from '../contracts';
+import { MAXIMUM_ONCHAIN_ERROR_LENGTH } from '../../constants';
 
 const createAirnodeRrpFake = () => new ethers.Contract('address', ['ABI']) as unknown as AirnodeRrp;
 const config = fixtures.buildConfig();
@@ -132,7 +133,11 @@ describe('submitApiCall', () => {
           { level: 'INFO', message: `Submitting API call fulfillment for Request:${apiCall.id}...` },
         ]);
         expect(err).toEqual(null);
-        expect(data).toEqual({ hash: '0xtransactionId' });
+        expect(data).toEqual({
+          ...apiCall,
+          fulfillment: { hash: '0xtransactionId' },
+          status: RequestStatus.Submitted,
+        });
         expect(staticFulfillMock).toHaveBeenCalledTimes(1);
         expect(staticFulfillMock).toHaveBeenCalledWith(
           apiCall.id,
@@ -238,7 +243,12 @@ describe('submitApiCall', () => {
           { level: 'INFO', message: `Submitting API call fail for Request:${apiCall.id}...` },
         ]);
         expect(err).toEqual(null);
-        expect(data).toEqual({ hash: '0xfailtransaction' });
+        expect(data).toEqual({
+          ...apiCall,
+          fulfillment: { hash: '0xfailtransaction' },
+          status: RequestStatus.Submitted,
+          errorMessage: 'Fulfill transaction failed',
+        });
         expect(staticFulfillMock).toHaveBeenCalledTimes(1);
         expect(staticFulfillMock).toHaveBeenCalledWith(
           apiCall.id,
@@ -290,7 +300,12 @@ describe('submitApiCall', () => {
           { level: 'INFO', message: `Submitting API call fail for Request:${apiCall.id}...` },
         ]);
         expect(err).toEqual(null);
-        expect(data).toEqual({ hash: '0xfailtransaction' });
+        expect(data).toEqual({
+          ...apiCall,
+          fulfillment: { hash: '0xfailtransaction' },
+          status: RequestStatus.Submitted,
+          errorMessage: 'Fulfill transaction failed',
+        });
         expect(staticFulfillMock).toHaveBeenCalledTimes(1);
         expect(staticFulfillMock).toHaveBeenCalledWith(
           apiCall.id,
@@ -443,7 +458,12 @@ describe('submitApiCall', () => {
           },
         ]);
         expect(err).toEqual(null);
-        expect(data).toEqual({ hash: '0xfailtransaction' });
+        expect(data).toEqual({
+          ...apiCall,
+          fulfillment: { hash: '0xfailtransaction' },
+          status: RequestStatus.Submitted,
+          errorMessage: 'API call failed',
+        });
         expect(failMock).toHaveBeenCalledTimes(1);
         expect(failMock).toHaveBeenCalledWith(
           apiCall.id,
@@ -451,6 +471,53 @@ describe('submitApiCall', () => {
           apiCall.fulfillAddress,
           apiCall.fulfillFunctionId,
           RequestErrorMessage.ApiCallFailed,
+          txOpts
+        );
+        expect(staticFulfillMock).not.toHaveBeenCalled();
+        expect(fulfillMock).not.toHaveBeenCalled();
+      }
+    );
+
+    test.each([gasPrice, gasPriceFallback])(
+      `submits a fail transaction with a trimmed errorMessage for errored requests - %#`,
+      async (gasTarget: GasTarget) => {
+        const txOpts = { gasLimit: 500_000, ...gasTarget, nonce: 5 };
+        const provider = new ethers.providers.JsonRpcProvider();
+        const longError = 'This very long error message should get trimmed'.repeat(10);
+        const trimmedError = longError.substring(0, MAXIMUM_ONCHAIN_ERROR_LENGTH - 3).concat('...');
+        failMock.mockResolvedValueOnce({ hash: '0xfailtransaction' });
+        const apiCall = fixtures.requests.buildApiCall({
+          errorMessage: longError,
+          status: RequestStatus.Errored,
+          nonce: 5,
+        });
+
+        const [logs, err, data] = await apiCalls.submitApiCall(createAirnodeRrpFake(), apiCall, {
+          gasTarget,
+          masterHDNode,
+          provider,
+        });
+
+        expect(logs).toEqual([
+          {
+            level: 'INFO',
+            message: `Submitting API call fail for Request:${apiCall.id}...`,
+          },
+        ]);
+        expect(err).toEqual(null);
+        expect(data).toEqual({
+          ...apiCall,
+          fulfillment: { hash: '0xfailtransaction' },
+          status: RequestStatus.Submitted,
+          errorMessage: longError,
+        });
+        expect(failMock).toHaveBeenCalledTimes(1);
+        expect(failMock).toHaveBeenCalledWith(
+          apiCall.id,
+          apiCall.airnodeAddress,
+          apiCall.fulfillAddress,
+          apiCall.fulfillFunctionId,
+          trimmedError,
           txOpts
         );
         expect(staticFulfillMock).not.toHaveBeenCalled();

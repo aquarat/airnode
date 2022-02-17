@@ -9,6 +9,7 @@ import {
   RequestedWithdrawalEvent,
   FulfilledWithdrawalEvent,
 } from '@api3/airnode-protocol';
+import { AirnodeRrp } from './evm/contracts';
 
 // ===========================================
 // State
@@ -35,7 +36,6 @@ export enum RequestErrorMessage {
   NoMatchingAggregatedApiCall = 'No matching aggregated API call',
   ApiCallFailed = 'API call failed',
   ReservedParametersInvalid = 'Reserved parameters are invalid',
-  ResponseValueNotFound = 'Response value not found',
   FulfillTransactionFailed = 'Fulfill transaction failed',
   SponsorRequestLimitExceeded = 'Sponsor request limit exceeded',
 }
@@ -112,10 +112,13 @@ export interface ApiCall {
   readonly responseValue?: string;
   readonly signature?: string;
   readonly type: ApiCallType;
+  readonly template?: ApiCallTemplate;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
 export interface Withdrawal {}
+
+export type AnyRequest = ApiCall | Withdrawal;
 
 export interface ApiCallTemplate {
   readonly airnodeAddress: string;
@@ -124,9 +127,17 @@ export interface ApiCallTemplate {
   readonly id: string;
 }
 
+export interface ApiCallTemplatesById {
+  readonly [id: string]: ApiCallTemplate;
+}
+
 export interface GroupedRequests {
   readonly apiCalls: Request<ApiCall>[];
   readonly withdrawals: Request<Withdrawal>[];
+}
+
+export interface SubmitRequest<T> {
+  (airnodeRrp: AirnodeRrp, request: Request<T>, options: TransactionOptions): Promise<LogsErrorData<Request<T>>>;
 }
 
 export interface ProviderSettings extends CoordinatorSettings {
@@ -134,6 +145,7 @@ export interface ProviderSettings extends CoordinatorSettings {
   readonly blockHistoryLimit: number;
   readonly chainId: string;
   readonly chainType: ChainType;
+  readonly chainOptions: ChainOptions;
   readonly ignoreBlockedRequestsAfterBlocks: number;
   readonly minConfirmations: number;
   readonly name: string;
@@ -171,7 +183,7 @@ export interface CoordinatorState {
   readonly aggregatedApiCallsById: AggregatedApiCallsById;
   readonly config: Config;
   readonly providerStates: ProviderStates;
-  readonly id: string;
+  readonly coordinatorId: string;
   readonly settings: CoordinatorSettings;
 }
 
@@ -189,6 +201,10 @@ export interface EVMProviderState {
   readonly provider: ethers.providers.JsonRpcProvider;
   readonly masterHDNode: ethers.utils.HDNode;
   readonly currentBlock: number | null;
+}
+
+export interface EVMProviderSponsorState extends EVMProviderState {
+  readonly sponsorAddress: string;
 }
 
 export interface TransactionOptions {
@@ -210,26 +226,55 @@ export interface AuthorizationByRequestId {
   readonly [requestId: string]: boolean;
 }
 
-export interface ApiCallResponse {
-  readonly value?: string;
-  readonly signature?: string;
-  readonly errorMessage?: string;
+export type ApiCallResponse = ApiCallSuccessResponse | ApiCallErrorResponse;
+
+export interface ApiCallSuccessResponse {
+  success: true;
+  value: string;
+  signature: string;
 }
 
-export interface AggregatedApiCall {
-  readonly id: string;
-  readonly sponsorAddress: string;
-  readonly airnodeAddress: string;
-  readonly requesterAddress: string;
-  readonly sponsorWalletAddress: string;
-  readonly chainId: string;
-  readonly endpointId: string;
-  readonly endpointName?: string;
-  readonly oisTitle?: string;
-  readonly parameters: ApiCallParameters;
-  readonly errorMessage?: string;
-  readonly responseValue?: string;
-  readonly signature?: string;
+export interface ApiCallErrorResponse {
+  success: false;
+  errorMessage: string;
+}
+
+export type AggregatedApiCall = RegularAggregatedApiCall | TestingGatewayAggregatedApiCall;
+
+export interface BaseAggregatedApiCall {
+  id: string;
+  airnodeAddress: string;
+  endpointId: string;
+  endpointName: string;
+  oisTitle: string;
+  parameters: ApiCallParameters;
+  // TODO: Remove these values from this interface. They are added only after the API call is made
+  // depending on the result. Current implementation causes ambiguity when these fields are
+  // optional and when not.
+  responseValue?: string;
+  signature?: string;
+  errorMessage?: string;
+}
+
+export interface RegularAggregatedApiCall extends BaseAggregatedApiCall {
+  type: 'regular';
+  sponsorAddress: string;
+  requesterAddress: string;
+  sponsorWalletAddress: string;
+  chainId: string;
+  requestType: ApiCallType;
+  // TODO: This has way too many common properties with ApiCall
+  metadata: RequestMetadata;
+  requestCount: string;
+  templateId: string | null;
+  fulfillAddress: string;
+  fulfillFunctionId: string;
+  encodedParameters: string;
+  template?: ApiCallTemplate;
+}
+
+export interface TestingGatewayAggregatedApiCall extends BaseAggregatedApiCall {
+  type: 'testing-gateway';
 }
 
 // ===========================================
@@ -241,11 +286,26 @@ export interface WorkerOptions {
   readonly stage: string;
 }
 
-export type WorkerFunctionName = 'initializeProvider' | 'callApi' | 'processProviderRequests';
+export interface InitializeProviderPayload {
+  readonly functionName: 'initializeProvider';
+  readonly state: ProviderState<EVMProviderState>;
+}
+
+export interface ProcessTransactionsPayload {
+  readonly functionName: 'processTransactions';
+  readonly state: ProviderState<EVMProviderSponsorState>;
+}
+
+export interface CallApiPayload {
+  readonly functionName: 'callApi';
+  readonly aggregatedApiCall: AggregatedApiCall;
+  readonly logOptions: LogOptions;
+}
+
+export type WorkerPayload = InitializeProviderPayload | ProcessTransactionsPayload | CallApiPayload;
 
 export interface WorkerParameters extends WorkerOptions {
-  readonly functionName: WorkerFunctionName;
-  readonly payload: any;
+  readonly payload: WorkerPayload;
 }
 
 export interface WorkerResponse {
@@ -298,26 +358,19 @@ export type EVMEventLog =
   | EVMFulfilledWithdrawalLog;
 
 // ===========================================
-// Transactions
-// ===========================================
-export interface TransactionReceipt {
-  readonly id: string;
-  readonly data?: ethers.Transaction;
-  readonly error?: Error;
-  readonly type: RequestType;
-}
-
-// ===========================================
 // Triggers
 // ===========================================
-export interface RrpTrigger {
+export interface Trigger {
   readonly endpointId: string;
   readonly endpointName: string;
   readonly oisTitle: string;
 }
 
 export interface Triggers {
-  readonly rrp: RrpTrigger[];
+  readonly rrp: Trigger[];
+  // For now the attribute is optional, because http gateway is supported only on AWS.
+  // TODO: Make this required once it is supported everywhere.
+  http?: Trigger[];
 }
 
 // ===========================================
@@ -360,7 +413,7 @@ export interface PendingLog {
 // are purposefully tuples (over an object with 'logs' and 'error' properties) for
 // this reason.
 export type LogsData<T> = readonly [PendingLog[], T];
-export type LogsErrorData<T> = readonly [PendingLog[], Error | null, T];
+export type LogsErrorData<T> = readonly [PendingLog[], Error | null, T | null];
 
 // ===========================================
 // Config
@@ -375,6 +428,17 @@ export interface Provider {
   readonly url: string;
 }
 
+export interface PriorityFee {
+  readonly value: string;
+  readonly unit?: 'wei' | 'kwei' | 'mwei' | 'gwei' | 'szabo' | 'finney' | 'ether';
+}
+
+export interface ChainOptions {
+  readonly txType: 'legacy' | 'eip1559';
+  readonly baseFeeMultiplier?: string;
+  readonly priorityFee?: PriorityFee;
+}
+
 export interface ChainConfig {
   readonly authorizers: string[];
   readonly blockHistoryLimit?: number;
@@ -383,12 +447,15 @@ export interface ChainConfig {
   readonly ignoreBlockedRequestsAfterBlocks?: number;
   readonly minConfirmations?: number;
   readonly type: ChainType;
+  readonly options: ChainOptions;
   readonly providers: Record<string, Provider>;
+  readonly maxConcurrency: number;
 }
 
 export interface HttpGateway {
   readonly enabled: boolean;
   readonly apiKey?: string;
+  readonly maxConcurrency?: number;
 }
 
 export interface Heartbeat {
@@ -405,12 +472,14 @@ export interface LocalProvider {
 export interface AwsCloudProvider {
   readonly type: 'aws';
   readonly region: string;
+  readonly disableConcurrencyReservations: boolean;
 }
 
 export interface GcpCloudProvider {
   readonly type: 'gcp';
   readonly region: string;
   readonly projectId: string;
+  readonly disableConcurrencyReservations: boolean;
 }
 
 export type CloudProvider = AwsCloudProvider | GcpCloudProvider;
@@ -426,6 +495,7 @@ export interface NodeSettings {
   readonly logFormat: LogFormat;
   readonly logLevel: LogLevel;
   readonly nodeVersion: string;
+  readonly skipValidation?: boolean;
 }
 
 export interface ApiCredentials extends AdapterApiCredentials {

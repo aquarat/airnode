@@ -1,7 +1,7 @@
 {
   "name": "@api3/airnode-examples",
   "license": "MIT",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "private": false,
   "description": "A collection of examples showcasing the features of Airnode",
   "scripts": {
@@ -17,6 +17,7 @@
     "dev:generate-example-files": "ts-node dev-scripts/generate-example-files.ts",
     "eth-node": "hardhat node",
     "make-request": "ts-node scripts/make-request.ts",
+    "make-withdrawal-request": "ts-node scripts/make-withdrawal-request.ts",
     "print-account-details": "ts-node scripts/print-account-details.ts",
     "rebuild-airnode-container": "ts-node scripts/rebuild-airnode-container.ts",
     "rebuild-artifacts-container": "ts-node scripts/rebuild-artifacts-container.ts",
@@ -25,16 +26,17 @@
     "run-airnode-locally": "ts-node scripts/run-airnode-locally.ts",
     "sponsor-requester": "ts-node scripts/sponsor-requester.ts",
     "test:coingecko-aws": "ts-node scripts/aws-test/coingecko-aws-test.ts",
-    "test:unit": "jest --selectProjects unit",
+    "test": "jest --selectProjects unit",
     "test:e2e": "jest --selectProjects e2e"
   },
   "dependencies": {
-    "@api3/airnode-admin": "^0.3.1",
-    "@api3/airnode-abi": "^0.3.1",
-    "@api3/airnode-deployer": "^0.3.1",
-    "@api3/airnode-node": "^0.3.1",
-    "@api3/airnode-protocol": "^0.3.1",
-    "ethers": "^5.4.4"
+    "@api3/airnode-abi": "^0.4.0",
+    "@api3/airnode-admin": "^0.4.0",
+    "@api3/airnode-deployer": "^0.4.0",
+    "@api3/airnode-node": "^0.4.0",
+    "@api3/airnode-protocol": "^0.4.0",
+    "ethers": "^5.4.4",
+    "is-wsl": "^2.2.0"
   },
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.0.2",

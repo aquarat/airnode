@@ -1,7 +1,7 @@
 {
   "name": "@api3/airnode-protocol",
   "license": "MIT",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "private": false,
   "main": "dist/src/index",
   "files": [
@@ -27,7 +27,8 @@
     "test": "ts-node scripts/run-hardhat-tests.ts",
     "test:hardhat": "hardhat test",
     "test:coverage": "hardhat coverage",
-    "test:gas": "REPORT_GAS=TRUE hardhat test"
+    "test:gas": "REPORT_GAS=TRUE hardhat test",
+    "verify-deployment": "yarn run build:contracts && ts-node scripts/verify-deployment.ts"
   },
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.0.2",

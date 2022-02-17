@@ -10,12 +10,21 @@ export interface Contracts {
 
 export function buildChainConfig(contracts: Contracts): ChainConfig {
   return {
+    maxConcurrency: 100,
     contracts: {
       AirnodeRrp: contracts.AirnodeRrp,
     },
     authorizers: [],
     id: '31337',
     type: 'evm',
+    options: {
+      txType: 'eip1559',
+      baseFeeMultiplier: '2',
+      priorityFee: {
+        value: '3.12',
+        unit: 'gwei',
+      },
+    },
     providers: {
       'EVM local': {
         url: 'http://127.0.0.1:8545/',

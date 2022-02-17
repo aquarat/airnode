@@ -1,6 +1,7 @@
 {
   "chains": [
     {
+      "maxConcurrency": 100,
       "authorizers": [],
       "contracts": {
         "AirnodeRrp": "0x5FbDB2315678afecb367f032d93F642f64180aa3"
@@ -11,7 +12,15 @@
           "url": "${PROVIDER_URL}"
         }
       },
-      "type": "evm"
+      "type": "evm",
+      "options": {
+        "txType": "eip1559",
+        "baseFeeMultiplier": "2",
+        "priorityFee": {
+          "value": "3.12",
+          "unit": "gwei"
+        }
+      }
     }
   ],
   "nodeSettings": {
@@ -27,8 +36,9 @@
     },
     "logFormat": "plain",
     "logLevel": "INFO",
-    "nodeVersion": "0.3.0",
-    "stage": "dev"
+    "nodeVersion": "0.5.0",
+    "stage": "dev",
+    "skipValidation": true
   },
   "triggers": {
     "rrp": [

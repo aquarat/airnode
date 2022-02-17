@@ -1,6 +1,7 @@
 {
   "chains": [
     {
+      "maxConcurrency": 100,
       "authorizers": ["0x534DfA0d242e7fDCFD096C2B1a3D70F172008778"],
       "contracts": {
         "AirnodeRrp": "0x534DfA0d242e7fDCFD096C2B1a3D70F172008778"
@@ -24,16 +25,18 @@
     },
     "httpGateway": {
       "enabled": true,
-      "apiKey": "012345678901234567890123456789"
+      "apiKey": "012345678901234567890123456789",
+      "maxConcurrency": 20
     },
     "logFormat": "json",
     "logLevel": "INFO",
-    "nodeVersion": "0.3.0",
+    "nodeVersion": "0.4.0",
     "cloudProvider": {
       "type": "aws",
       "region": ""
     },
-    "stage": "FILL"
+    "stage": "FILL",
+    "skipValidation": true
   },
   "triggers": {
     "rrp": [

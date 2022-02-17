@@ -1,27 +1,16 @@
 import * as logger from '../../logger';
 import * as workers from '../../workers';
 import { go } from '../../utils/promise-utils';
-import {
-  AggregatedApiCall,
-  ApiCallResponse,
-  LogOptions,
-  LogsData,
-  WorkerFunctionName,
-  WorkerOptions,
-} from '../../types';
-import { CallApiArgs } from '../../workers/local-handlers';
-import type { ApiCallOptions } from '../../handlers/call-api';
+import { AggregatedApiCall, ApiCallResponse, LogOptions, LogsData, WorkerOptions, CallApiPayload } from '../../types';
 
 export async function spawnNewApiCall(
   aggregatedApiCall: AggregatedApiCall,
   logOptions: LogOptions,
-  workerOpts: WorkerOptions,
-  apiCallOptions?: ApiCallOptions
+  workerOpts: WorkerOptions
 ): Promise<LogsData<ApiCallResponse | null>> {
   const options = {
     ...workerOpts,
-    functionName: 'callApi' as WorkerFunctionName,
-    payload: { aggregatedApiCall, logOptions, apiCallOptions } as CallApiArgs,
+    payload: { aggregatedApiCall, logOptions, functionName: 'callApi' } as CallApiPayload,
   };
 
   const [err, res] = await go(() => workers.spawn(options));

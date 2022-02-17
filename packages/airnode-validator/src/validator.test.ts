@@ -3,13 +3,13 @@ import fs from 'fs';
 import * as validator from './validator';
 import { extraFieldMessage, formattingMessage, missingParamMessage } from './utils/messages';
 import { getPath } from './commands/utils';
-import { error } from './utils/logger';
+import { error, warn } from './utils/logger';
 import { Log } from './types';
 
 const messages: Log[] = [];
 
-const endpointsPath = getPath('endpoints.json', messages, 'pre-alpha');
-const oisPath = getPath('ois.json', messages, 'pre-alpha');
+const endpointsPath = getPath('endpoints.json', messages, '1.0');
+const oisPath = getPath('ois.json', messages, '1.0');
 
 let endpointsTemplate: object, oisTemplate: object;
 
@@ -217,7 +217,7 @@ const invalidEndpointSpecification = `[
 ]`;
 
 const validOISSpecification = `{
-  "oisFormat": "1.10.0",
+  "oisFormat": "1.0.0",
   "title": "myOisTitle",
   "version": "1.2.3",
   "apiSpecifications": ${validAPISpecification},
@@ -253,10 +253,24 @@ describe('validator', () => {
         },
         "fixedOperationParameters": [],
         "reservedParameters": [],
-        "parameters": []
+        "parameters": [
+          {
+            "name": "correct",
+            "operationParameter": {
+              "name": "project_type",
+              "in": "header"
+            }
+          }
+        ]
       }
     ]`;
     expect(validator.validateJson(JSON.parse(validEndpointSpec), endpointsTemplate)).toEqual({
+      valid: true,
+      messages: [],
+    });
+    expect(
+      validator.validateJson(JSON.parse(validEndpointSpec), endpointsTemplate, undefined, undefined, undefined, false)
+    ).toEqual({
       valid: true,
       messages: [],
     });
@@ -287,6 +301,13 @@ describe('validator', () => {
             "example": ""
           },
           {
+            "name": "_incorrect",
+            "operationParameter": {
+              "name": "_type",
+              "in": "header"
+            }
+          },
+          {
             "name": "correct",
             "operationParameter": {
               "name": "operation",
@@ -315,6 +336,8 @@ describe('validator', () => {
         error('[0].reservedParameters.[0].name: Reserved parameter can be only "_type", "_path" or "_times"'),
         formattingMessage(['[0]', 'parameters', '[0]', 'name']),
         missingParamMessage(['[0]', 'parameters', '[0]', 'operationParameter']),
+        formattingMessage(['[0]', 'parameters', '[1]', 'name']),
+        error("[0].parameters.[1].operationParameter.name: Can't have a name of reserved parameter"),
         missingParamMessage(['[1]', 'name']),
         missingParamMessage(['[1]', 'operation']),
         missingParamMessage(['[1]', 'fixedOperationParameters', '[0]', 'operationParameter', 'name']),
@@ -326,22 +349,26 @@ describe('validator', () => {
         extraFieldMessage(['[1]', 'extra']),
       ],
     });
+    expect(
+      validator.validateJson(JSON.parse(invalidEndpointSpec), endpointsTemplate, undefined, undefined, undefined, false)
+    ).toEqual({
+      valid: true,
+      messages: [],
+    });
   });
 
   it('ois specs', () => {
-    expect(validator.validateJson(JSON.parse(validOISSpecification), oisTemplate, 'templates/pre-alpha/')).toEqual({
+    expect(validator.validateJson(JSON.parse(validOISSpecification), oisTemplate, 'templates/1.0/')).toEqual({
       valid: true,
       messages: [],
     });
 
-    expect(validator.validateJson(JSON.parse(invalidOISSpecification), oisTemplate, 'templates/pre-alpha/')).toEqual({
+    expect(validator.validateJson(JSON.parse(invalidOISSpecification), oisTemplate, 'templates/1.0/')).toEqual({
       valid: false,
       messages: [
-        formattingMessage(['oisFormat']),
-        formattingMessage(['version']),
+        error('oisFormat: OIS format should be 1.0.0'),
+        warn('version is not formatted correctly'),
         error('Path "/myPath2" from apiSpecifications.paths./myPath2 must be included in endpoints array'),
-        error('Parameter "myParameter2" from "apiSpecifications.paths./myPath.get" must be included in "endpoints"'),
-        error('Parameter "myParameter" from "apiSpecifications.paths./myPath2.get" must be included in "endpoints"'),
         missingParamMessage(['endpoints', '[0]', 'fixedOperationParameters']),
         missingParamMessage(['endpoints', '[1]', 'reservedParameters']),
         missingParamMessage(['endpoints', '[0]', 'fixedOperationParameters']),
@@ -353,11 +380,24 @@ describe('validator', () => {
         ),
       ],
     });
+    expect(
+      validator.validateJson(
+        JSON.parse(invalidOISSpecification),
+        oisTemplate,
+        'templates/1.0/',
+        undefined,
+        undefined,
+        false
+      )
+    ).toEqual({
+      valid: true,
+      messages: [],
+    });
   });
 
   it('interpolation', () => {
     expect(
-      validator.validate('exampleSpecs/secrets.config.json', 'templates/0.3/config.json', 'exampleSpecs/secrets.env')
+      validator.validate('exampleSpecs/secrets.config.json', 'templates/0.5/config.json', 'exampleSpecs/secrets.env')
     ).toEqual({ valid: true, messages: [] });
   });
 });

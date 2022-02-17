@@ -1,71 +1,50 @@
 import find from 'lodash/find';
 import * as wallet from '../evm/wallet';
-import { randomString } from '../utils/string-utils';
-import { AggregatedApiCall, Config, WorkerOptions, ApiCallResponse } from '../types';
+import { randomHexString } from '../utils/string-utils';
+import { AggregatedApiCall, Config, ApiCallSuccessResponse } from '../types';
 import * as logger from '../logger';
-import { go } from '../utils/promise-utils';
-import { spawnNewApiCall } from '../adapters/http/worker';
-import { WORKER_CALL_API_TIMEOUT } from '../constants';
+import { callApi } from '../api';
 
 export async function testApi(
   config: Config,
   endpointId: string,
   parameters: Record<string, string>
-): Promise<[Error, null] | [null, ApiCallResponse]> {
-  const testCallId = randomString(8);
+): Promise<[Error, null] | [null, ApiCallSuccessResponse]> {
+  const testCallId = randomHexString(16);
   const airnodeAddress = wallet.getAirnodeWallet(config).address;
 
   const logOptions = logger.buildBaseOptions(config, { requestId: testCallId });
 
-  const rrpTrigger = find(config.triggers.rrp, ['endpointId', endpointId]);
-  if (!rrpTrigger) {
-    return [new Error(`No such endpoint with ID '${endpointId}'`), null];
+  const httpTrigger = find(config.triggers.http, ['endpointId', endpointId]);
+  if (!httpTrigger) {
+    return [new Error(`Unable to find endpoint with ID:'${endpointId}'`), null];
   }
 
-  const endpoints = find(config.ois, ['title', rrpTrigger.oisTitle])?.endpoints;
-  const endpoint = find(endpoints, ['name', rrpTrigger.endpointName]);
+  const endpoints = find(config.ois, ['title', httpTrigger.oisTitle])?.endpoints;
+  const endpoint = find(endpoints, ['name', httpTrigger.endpointName]);
 
   if (!endpoint) {
     return [new Error(`No endpoint definition for endpoint ID '${endpointId}'`), null];
   }
-  if (!endpoint.testable) {
-    return [new Error(`Endpoint with ID '${endpointId}' can't be tested`), null];
-  }
-
-  const workerOpts: WorkerOptions = {
-    cloudProvider: config.nodeSettings.cloudProvider,
-    airnodeAddressShort: wallet.getAirnodeAddressShort(airnodeAddress),
-    stage: config.nodeSettings.stage,
-  };
 
   const aggregatedApiCall: AggregatedApiCall = {
+    type: 'testing-gateway',
     id: testCallId,
     airnodeAddress,
-    // TODO: These values are technically incorrect and could cause troubles in the future
-    // because Airnode might expect valid values in these properties.
-    requesterAddress: '',
-    sponsorAddress: '',
-    sponsorWalletAddress: '',
-    chainId: '',
     endpointId,
-    endpointName: rrpTrigger.endpointName,
-    oisTitle: rrpTrigger.oisTitle,
+    endpointName: httpTrigger.endpointName,
+    oisTitle: httpTrigger.oisTitle,
     parameters,
   };
 
-  const [err, logData] = await go(
-    () => spawnNewApiCall(aggregatedApiCall, logOptions, workerOpts, { forTestingGateway: true }),
-    {
-      timeoutMs: WORKER_CALL_API_TIMEOUT,
-    }
-  );
+  const [logs, response] = await callApi({ config, aggregatedApiCall });
 
-  const resLogs = logData ? logData[0] : [];
-  logger.logPending(resLogs, logOptions);
+  logger.logPending(logs, logOptions);
 
-  if (err || !logData || !logData[1]) {
-    return [err || new Error('An unknown error occurred'), null];
+  if (!response.success) {
+    const err = new Error(response.errorMessage || 'An unknown error occurred');
+    return [err, null];
   }
 
-  return [null, logData[1]];
+  return [null, response];
 }

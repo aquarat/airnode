@@ -20,7 +20,7 @@ the Airnode contracts across chains
 
 [**airnode-abi**:](https://github.com/api3dao/airnode/tree/master/packages/airnode-abi) Encoding and decoding utilities
 for Airnode according to the
-[Airnode ABI specifications](https://docs.api3.org/airnode/v0.2/reference/specifications/airnode-abi-specifications.html)
+[Airnode ABI specifications](https://docs.api3.org/airnode/latest/reference/specifications/airnode-abi-specifications.html)
 
 [**deployer**:](https://github.com/api3dao/airnode/tree/master/packages/airnode-deployer) Tools to automate Airnode
 deployment
@@ -31,7 +31,7 @@ showcasing the features of Airnode
 [**node**:](https://github.com/api3dao/airnode/tree/master/packages/airnode-node) Airnode itself
 
 [**ois**:](https://github.com/api3dao/airnode/tree/master/packages/airnode-ois) Types for
-[Oracle Integration Specification (OIS)](https://docs.api3.org/airnode/v0.2/grp-providers/guides/build-an-airnode/api-integration.html#ois-template)
+[Oracle Integration Specification (OIS)](https://docs.api3.org/ois/v1.0.0/)
 
 [**operation**:](https://github.com/api3dao/airnode/tree/master/packages/airnode-operation) Development and testing
 utilities for the core parts of Airnode
@@ -68,6 +68,10 @@ We heavily recommend using UNIX based systems for development. If you are using 
 We use [changesets](https://github.com/atlassian/changesets) to manage the changelog for us. What that means for
 contributors is that you need to add a changeset by running `yarn changeset` which contains what packages should be
 bumped, their associated semver bump types and some markdown which will be inserted into changelogs.
+
+A changeset is required to merge a PR if it changes one of the monorepo packages. If you really do not want to include a
+changeset, you have to generate an empty one by running `yarn changeset:empty`. Note that a changeset is not required
+for dependabot PRs.
 
 > Tip: Add `export EDITOR="code --wait"` to `.bashrc` to make it possible to write changelog description in VS Code (you
 > can adapt the configuration for other editor similarly).

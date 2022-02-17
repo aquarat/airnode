@@ -10,6 +10,7 @@ import {
 const createConfig = async (generateExampleFile: boolean): Promise<Config> => ({
   chains: [
     {
+      maxConcurrency: 100,
       authorizers: [],
       contracts: {
         AirnodeRrp: await getAirnodeRrpAddress(generateExampleFile),
@@ -21,6 +22,14 @@ const createConfig = async (generateExampleFile: boolean): Promise<Config> => ({
         },
       },
       type: 'evm',
+      options: {
+        txType: 'eip1559',
+        baseFeeMultiplier: '2',
+        priorityFee: {
+          value: '3.12',
+          unit: 'gwei',
+        },
+      },
     },
   ],
   nodeSettings: {
@@ -36,6 +45,7 @@ const createConfig = async (generateExampleFile: boolean): Promise<Config> => ({
     logLevel: 'INFO',
     nodeVersion: createNodeVersion(),
     stage: 'dev',
+    skipValidation: true,
   },
   triggers: {
     rrp: [

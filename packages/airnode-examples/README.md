@@ -16,12 +16,33 @@ but you may adapt the configuration to work for your target chain.
 
 ## Request-Response protocol (RRP)
 
-Currently, all of the examples facilitate the RRP protocol. The example RRP flow consists of two high level parts:
+Currently, all of the examples utilize the RRP protocol. The example RRP flow consists of two high level parts:
 
-1. Deploy an `AirnodeRrp` contract and a `RrpRequester` on a supported chain
-2. Deploy Airnode on a cloud provider (or run locally in a docker) and make a request using the deployed requester
+1. Deploy an `AirnodeRrp` contract and a `RrpRequester` contract on a supported chain
+2. Deploy Airnode on a cloud provider, or run locally in a docker container, and make a request using the deployed
+   requester
 
-If you would like to know more about RRP, read the [API3 docs](https://docs.api3.org/airnode/v0.2/concepts/).
+If you would like to know more about RRP, read the [API3 docs](https://docs.api3.org/airnode/v0.3/concepts/).
+
+## Available examples
+
+We call examples "integrations" because they are integrated with some API. With each integration you are offered a
+choice of how you want to run the Airnode and which network to use, as mentioned above. The integrations have been
+designed to highlight various Airnode functionality and use cases, from simple price requests to more complex
+authenticated requests encoding multiple reserved parameters. The following list orders integrations alphabetically:
+
+- [CoinGecko](https://github.com/api3dao/airnode/blob/master/packages/airnode-examples/integrations/coingecko) -
+  unauthenticated cryptocurrency price request
+- [CoinGecko Testable](https://github.com/api3dao/airnode/tree/master/packages/airnode-examples/integrations/coingecko-testable) -
+  same price request as the CoinGecko example above. However, the endpoint is allowed to be tested using the
+  [HTTP gateway](https://docs.api3.org/airnode/v0.4/grp-providers/guides/build-an-airnode/http-gateway.html).
+- [CoinMarketCap](https://github.com/api3dao/airnode/blob/master/packages/airnode-examples/integrations/authenticated-coinmarketcap) -
+  authenticated cryptocurrency price request
+- [OpenWeather](https://github.com/api3dao/airnode/tree/master/packages/airnode-examples/integrations/weather-multi-value) -
+  authenticated weather request encoding multiple parameters including the transaction timestamp, time of sunset,
+  temperature, and a description of the weather.
+- [Relay security schemes](https://github.com/api3dao/airnode/tree/master/packages/airnode-examples/integrations/relay-security-schemes) -
+  demonstration of how to relay multiple request metadata like chain ID and sponsor address to the API endpoint.
 
 ## Setup
 
@@ -36,8 +57,7 @@ run the example with Rinkeby.
 
 ### 1. Choose an example
 
-First, you need to choose what example you want to run. We call these examples "integrations" because they are
-integrated with some API. You will also need to choose how you want to run the Airnode and which network to use.
+The first step is to choose an integration and network.
 
 If you intend to run an integration on Rinkeby, you will also need a funded account to deploy necessary contracts and
 trigger an Airnode request. For hardhat network you can use the account derived by hardhat default mnemonic which is
@@ -75,9 +95,9 @@ deploy the contracts and make transactions, so make sure it is funded. The recom
 
 ### 4. Deploy the RRP contract
 
-The [RRP contract](https://docs.api3.org/airnode/v0.2/concepts/#airnoderrp-sol) is a contract through which the
-[requester](https://docs.api3.org/airnode/v0.2/concepts/requester.html) triggers a request for Airnode. This contract is
-common for all Airnodes and requesters on a chain.
+The [RRP contract](https://docs.api3.org/airnode/v0.3/concepts/#airnoderrp-sol) is a contract through which the
+[requester](https://docs.api3.org/airnode/latest/concepts/requester.html) triggers a request for Airnode. This contract
+is common for all Airnodes and requesters on a chain.
 
 API3 team will deploy this contract for the most popular chains at some point, but for now you have to deploy it
 yourself using:
@@ -101,11 +121,12 @@ yarn create-aws-secrets
 
 ### 6. (Only if deploying to GCP) Create GCP credentials
 
-If you intend to deploy Airnode on GCP, you will need to sign in using the GCP CLI tool. If you are not sure how to do
-this or how to create a GCP account, see
+If you intend to deploy Airnode on GCP, you will need to create a service account for your project and add and download
+an access key for this account. If you are not sure how to do this or how to create a GCP account, see
 [the following docs section](https://docs.api3.org/airnode/v0.3/grp-providers/docker/deployer-image.html#gcp).
 
-No credentials file is required - signing through the GCP CLI is all there is needed.
+Store the access key file as `gcp.json` into the integration directory - e.g. if you have chosen the `coingecko`
+integration, store the file as `integrations/coingecko/gcp.json`.
 
 ### 7. Create Airnode configuration
 
@@ -128,13 +149,15 @@ step. The latter, `secrets.env` can be generated it using:
 yarn create-airnode-secrets
 ```
 
-> If you are not using docker for linux and you want to connect to your local hardhat network, you will need to modify
-> the generated `secrets.env` file found in `integrations/<integration-name>/` by replacing the provider URL with the
-> following: `PROVIDER_URL=http://host.docker.internal:8545`. This is a docker limitation. See:
-> https://stackoverflow.com/a/24326540
+> If you are using docker for Windows/WSL or docker for mac and you want to connect to your local hardhat network, you
+> will need to modify the generated `secrets.env` file found in `integrations/<integration-name>/` by replacing the
+> provider URL with the following: `PROVIDER_URL=http://host.docker.internal:8545`. This is a docker limitation. See:
+> https://stackoverflow.com/a/24326540.
+>
+> The `create-airnode-secrets` script will handle this for you.
 
 Refer to the
-[documentation](https://docs.api3.org/airnode/v0.2/grp-providers/guides/build-an-airnode/configuring-airnode.html) for
+[documentation](https://docs.api3.org/airnode/latest/grp-providers/guides/build-an-airnode/configuring-airnode.html) for
 more details.
 
 ### 9. Build docker artifacts
@@ -199,11 +222,11 @@ yarn deploy-requester
 
 ### 15. Derive and fund the sponsor wallet
 
-Airnode request requires a [sponsor](https://docs.api3.org/airnode/v0.2/concepts/sponsor.html), which will pay for the
+Airnode request requires a [sponsor](https://docs.api3.org/airnode/latest/concepts/sponsor.html), which will pay for the
 response transaction made by Airnode. Each sponsor has a dedicated wallet for a given Airnode. This wallet is called a
 "sponsor wallet" and can be derived from sponsor address and Airnode's extended public key with the
 [admin CLI package](https://github.com/api3dao/airnode/tree/master/packages/airnode-admin). Refer to the
-[documentation](https://docs.api3.org/airnode/v0.2/grp-developers/requesters-sponsors.html#how-to-derive-a-sponsor-wallet)
+[documentation](https://docs.api3.org/airnode/v0.3/grp-developers/requesters-sponsors.html#how-to-derive-a-sponsor-wallet)
 for more details.
 
 Run:
@@ -217,8 +240,8 @@ This script will first derive the sponsor wallet and afterwards fund it with 0.1
 
 ### 16. Allow the sponsor to pay for requests made by the requester
 
-In order to prevent misuse, each sponsor has to explicitely approve a requester. Once the requester is approved, his
-requests can be paid by this sponsor.
+In order to prevent misuse, each sponsor has to explicitly approve a requester. Once the requester is approved, requests
+can be paid by this sponsor.
 
 ```sh
 yarn sponsor-requester
@@ -235,7 +258,16 @@ yarn make-request
 When there is an blockchain event received by Airnode, it will immediately perform the API call and submit the response
 back on chain. This command will wait for all of this to happen and you should see the final output in the CLI.
 
-### 18. (Only if deploying to a cloud provider) Remove Airnode from the cloud provider
+### 18. (Optional) Make a withdrawal request
+
+Withdrawal requests instruct the Airnode return the funds of particular sponsor wallet back to sponsor. This step is
+recommended when testing on public testnets. To do so run:
+
+```sh
+yarn make-withdrawal-request
+```
+
+### 19. (Only if deploying to a cloud provider) Remove Airnode from the cloud provider
 
 If you want to tear down the Airnode from the cloud provider run:
 
@@ -246,6 +278,8 @@ yarn remove-airnode
 This will use the deployer to remove the Airnode lambdas from the cloud provider.
 
 ## For developers
+
+When pulling or creating a new integration you need to run `yarn build` to create necessary contract artifacts.
 
 The main point of these examples is to demonstrate the flexibility and features of Airnode, while being easy to
 maintain. The main design choice is that all integrations share the same instructions. This has several trade offs,
@@ -268,7 +302,7 @@ The examples package is also a nice fit for an end to end test of the whole Airn
 
 1. An integration using Airnode docker on localhost - This test also builds the necessary docker images and runs on as
    part of end to end test suite on CI.
-2. An integration using the Airnode deployed on AWS with rinkeby network - This is intended to be run by a developer
+2. An integration using the Airnode deployed on AWS with Rinkeby network - This is intended to be run by a developer
    before making a release. This test is located in the `scripts` directory, because it should not be run on CI because
    if its performance and complexity.
 
